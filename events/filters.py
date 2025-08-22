@@ -12,10 +12,12 @@ class EventFilter(django_filters.FilterSet):
     )
     
     date_filter = django_filters.ChoiceFilter(choices=DATE_CHOICES, method='filter_by_date')
+    organizer = django_filters.NumberFilter(field_name="organizer")
+
 
     class Meta:
         model = Event
-        fields = ['date_filter']
+        fields = ['date_filter', 'organizer']
 
     def filter_by_date(self, queryset, name, value):
         now = timezone.now()
@@ -27,10 +29,6 @@ class EventFilter(django_filters.FilterSet):
             return queryset.filter(end_time__lt=today_start)
 
         elif value == 'today':
-            # Events that:
-            # 1️⃣ Start today
-            # 2️⃣ End today
-            # 3️⃣ Or are ongoing during any time today
             return queryset.filter(
                 Q(start_time__date=today_start.date()) |
                 Q(end_time__date=today_start.date()) |

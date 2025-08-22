@@ -57,10 +57,38 @@ class Event(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def is_full(self):
-        return self.capacity is not None and self.registrations.count() >= self.capacity
+        attending_count = self.reactions.filter(status=EventReaction.ATTENDING).count()
+        return self.capacity is not None and attending_count >= self.capacity
 
     def __str__(self):
         return self.title
     
     class Meta:
         ordering = ["-start_time"]
+
+
+
+class EventReaction(models.Model):
+    INTERESTED = "interested"
+    ATTENDING  = "attending"
+
+    STATUS_CHOICES = (
+        (INTERESTED, "Interested"),
+        (ATTENDING,  "Attending"),
+    )
+
+    user   = models.ForeignKey(User, on_delete=models.CASCADE, related_name="event_reactions")
+    event  = models.ForeignKey("Event", on_delete=models.CASCADE, related_name="reactions")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "event")
+        indexes = [
+            models.Index(fields=["event", "status"]),
+            models.Index(fields=["user"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} -> {self.event.title} [{self.status}]"
