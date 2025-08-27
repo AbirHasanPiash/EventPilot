@@ -58,3 +58,5 @@ class EventSerializer(serializers.ModelSerializer):
             return obj.my_reaction_list[0].status
 
         return None
+
+

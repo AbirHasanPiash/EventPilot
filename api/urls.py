@@ -12,4 +12,5 @@ router.register(r'categories', EventCategoryViewSet, basename='event-category')
 urlpatterns = [
     path('', include(router.urls)),
     path("events/", include("events.urls")),
+    path("dashboard/", include("dashboard.urls")),
 ]
