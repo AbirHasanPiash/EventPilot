@@ -92,3 +92,27 @@ class EventReaction(models.Model):
 
     def __str__(self):
         return f"{self.user.email} -> {self.event.title} [{self.status}]"
+    
+
+
+class EventSchedule(models.Model):
+    event = models.ForeignKey(
+        "Event",
+        on_delete=models.CASCADE,
+        related_name="schedules"
+    )
+    start_datetime = models.DateTimeField()
+    end_datetime = models.DateTimeField(blank=True, null=True)
+    title = models.CharField(max_length=255)
+    agenda = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["start_datetime"]
+        indexes = [
+            models.Index(fields=["event", "start_datetime"]),
+        ]
+
+    def __str__(self):
+        return f"{self.event.title} — {self.start_datetime.isoformat()} — {self.title}"

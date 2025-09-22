@@ -1,6 +1,5 @@
 from rest_framework import serializers
-from django.db.models import Count, Q
-from .models import Event, EventCategory, EventReaction
+from .models import Event, EventCategory, EventSchedule
 
 
 class EventCategorySerializer(serializers.ModelSerializer):
@@ -59,4 +58,20 @@ class EventSerializer(serializers.ModelSerializer):
 
         return None
 
+
+class EventScheduleSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = EventSchedule
+        fields = [
+            "id",
+            "event",
+            "start_datetime",
+            "end_datetime",
+            "title",
+            "agenda",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
 

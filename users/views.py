@@ -61,6 +61,8 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
         new_role = serializer.validated_data['role']
         user.role = new_role
+        if new_role != 'organizer':
+            user.organizer_requests.filter(status='approved').update(status='rejected')
         user.is_staff = (new_role == 'admin')
         user.save(update_fields=['role', 'is_staff'])
 

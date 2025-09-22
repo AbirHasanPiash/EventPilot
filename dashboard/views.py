@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.db.models import Prefetch
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from events.models import EventReaction, Event, EventCategory
 from events.serializers import EventSerializer
@@ -15,6 +15,10 @@ from django.db.models.functions import TruncMonth, TruncYear
 import calendar
 from collections import OrderedDict
 from users.models import User
+from .serializers import OrganizerRequestSerializer
+from rest_framework import generics, permissions
+from .models import OrganizerRequest
+from rest_framework import serializers
 
 
 
@@ -417,3 +421,82 @@ class AdminDashboardView(APIView):
         }
 
         return Response(data)
+
+
+class OrganizerRequestCreateView(generics.CreateAPIView):
+    queryset = OrganizerRequest.objects.all()
+    serializer_class = OrganizerRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # Check if already has pending
+        if OrganizerRequest.objects.filter(user=user, status='pending').exists():
+            raise serializers.ValidationError({"detail": "You already have a pending request."})
+
+        # Check if previously rejected within 90 days
+        last_rejected = OrganizerRequest.objects.filter(user=user, status='rejected').order_by('-reviewed_at').first()
+        if last_rejected and not last_rejected.can_request_again()[0]:
+            remaining = last_rejected.can_request_again()[1]
+            raise serializers.ValidationError({"detail": f"You must wait {remaining} more days before requesting again."})
+
+        serializer.save(user=user)
+
+
+class OrganizerRequestListView(generics.ListAPIView):
+    serializer_class = OrganizerRequestSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_queryset(self):
+        # join user and the user's profile in one query
+        qs = OrganizerRequest.objects.select_related('user', 'user__profile')
+
+        status_param = self.request.query_params.get("status")
+        if status_param in ["pending", "approved", "rejected"]:
+            return qs.filter(status=status_param)
+        return qs.filter(status="pending")
+
+
+
+class OrganizerRequestUpdateView(generics.UpdateAPIView):
+    queryset = OrganizerRequest.objects.select_related('user').all()
+    serializer_class = OrganizerRequestSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def perform_update(self, serializer):
+        instance = serializer.save(reviewed_at=now())
+        if instance.status == 'approved':
+            instance.user.role = 'organizer'
+            instance.user.save()
+
+
+class OrganizerRequestStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user_id = request.user.id
+
+        # Single query with user prefetched
+        request_obj = (
+            OrganizerRequest.objects.filter(user_id=user_id)
+            .select_related("user")
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not request_obj:
+            return Response({"status": "none"}, status=200)
+
+        serializer = OrganizerRequestSerializer(request_obj)
+        data = serializer.data
+
+        if request_obj.status == "rejected":
+            can_request, remaining_days = request_obj.can_request_again()
+            data["can_request_again"] = can_request
+            data["remaining_days"] = remaining_days if not can_request else 0
+        else:
+            data["can_request_again"] = True
+            data["remaining_days"] = 0
+
+        return Response(data, status=200)
