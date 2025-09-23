@@ -470,6 +470,12 @@ class OrganizerRequestUpdateView(generics.UpdateAPIView):
             instance.user.role = 'organizer'
             instance.user.save()
 
+class OrganizerRequestDetailView(generics.RetrieveAPIView):
+    queryset = OrganizerRequest.objects.select_related("user", "user__profile")
+    serializer_class = OrganizerRequestSerializer
+    permission_classes = [permissions.IsAdminUser]
+    lookup_field = "id" 
+
 
 class OrganizerRequestStatusView(APIView):
     permission_classes = [permissions.IsAuthenticated]
