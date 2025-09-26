@@ -3,11 +3,11 @@ from django.utils import timezone
 from django.db.models import Prefetch
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 
 from events.models import EventReaction, Event, EventCategory
 from events.serializers import EventSerializer
-from .serializers import OrganizerDashboardSerializer
+from dateutil.relativedelta import relativedelta
 from django.utils.timezone import now
 from datetime import timedelta
 from django.db.models import Count, Q, F
@@ -120,24 +120,25 @@ class OrganizerDashboardView(APIView):
         if user.role != "organizer":
             return Response({"detail": "Only organizers can access this endpoint."}, status=403)
 
+        current_time = now()
         events_qs = Event.objects.filter(organizer=user)
 
         # ---- All-time totals ----
-        total_events = events_qs.filter(start_time__lte=now()).count()
+        total_events = events_qs.filter(created_at__lte=current_time).count()
         total_attendees = EventReaction.objects.filter(
             event__organizer=user,
-            event__start_time__lte=now(),
+            created_at__lte=current_time,
             status=EventReaction.ATTENDING
         ).count()
 
         # ---- Last 12 months timeline ----
-        one_year_ago = now() - timedelta(days=365)
+        one_year_ago = current_time - relativedelta(months=12)
         monthly_data = (
-            events_qs.filter(start_time__gte=one_year_ago, start_time__lte=now())
+            events_qs.filter(start_time__gte=one_year_ago, start_time__lte=current_time)
             .annotate(month=TruncMonth("start_time"))
             .values("month")
             .annotate(
-                events_count=Count("id"),
+                events_count=Count("id", distinct=True),
                 attendees_count=Count(
                     "reactions",
                     filter=Q(reactions__status=EventReaction.ATTENDING),
@@ -146,10 +147,10 @@ class OrganizerDashboardView(APIView):
             .order_by("month")
         )
 
-        # Build skeleton for last 12 months
+        # Skeleton for last 12 months
         monthly_results = OrderedDict()
         for i in range(12):
-            dt = (now().replace(day=1) - timedelta(days=30 * i))
+            dt = (current_time.replace(day=1) - relativedelta(months=i))
             key = (dt.year, dt.month)
             monthly_results[key] = {
                 "month": calendar.month_name[dt.month],
@@ -166,16 +167,16 @@ class OrganizerDashboardView(APIView):
                     "attendees": row["attendees_count"],
                 })
 
-        final_monthly_stats = list(monthly_results.values())[::-1]  # chronological order
+        final_monthly_stats = list(monthly_results.values())[::-1]
 
         # ---- Last 5 years timeline ----
-        five_years_ago = now() - timedelta(days=365 * 5)
+        five_years_ago = current_time - relativedelta(years=5)
         yearly_data = (
-            events_qs.filter(start_time__gte=five_years_ago, start_time__lte=now())
+            events_qs.filter(start_time__gte=five_years_ago, start_time__lte=current_time)
             .annotate(year=TruncYear("start_time"))
             .values("year")
             .annotate(
-                events_count=Count("id"),
+                events_count=Count("id", distinct=True),
                 attendees_count=Count(
                     "reactions",
                     filter=Q(reactions__status=EventReaction.ATTENDING),
@@ -184,8 +185,7 @@ class OrganizerDashboardView(APIView):
             .order_by("year")
         )
 
-        # Build skeleton for last 5 years
-        current_year = now().year
+        current_year = current_time.year
         yearly_results = {
             y: {"year": y, "events": 0, "attendees": 0}
             for y in range(current_year - 4, current_year + 1)
@@ -209,9 +209,7 @@ class OrganizerDashboardView(APIView):
             "yearly_stats": final_yearly_stats,
         }
 
-        serializer = OrganizerDashboardSerializer(data)
-        return Response(serializer.data)
-
+        return Response(data)
 
 
 class AdminDashboardView(APIView):
