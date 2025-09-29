@@ -5,7 +5,7 @@ EventPilot is a robust **backend API for event management**, powered by **Django
 Key highlights include **JWT-based authentication** via **Djoser**, role-based access control, interactive dashboards, and comprehensive API features like pagination and Swagger documentation. Designed with security and performance in mind, it's ideal for building modern event management applications.
 
 - **Live Link:**
-    - `https://event-pilot-tau.vercel.app/swagger/`
+    - `[https://event-pilot-tau.vercel.app/swagger/](https://event-pilot-tau.vercel.app/swagger/)`
 
 ---
 
@@ -126,8 +126,6 @@ Follow these steps to set up EventPilot locally:
    ```bash
    python manage.py runserver
    ```
-   The API will be available at `http://127.0.0.1:8000/`.
-
 For production deployment (e.g., on Vercel), ensure you configure environment variables in your hosting platform and use a production-ready database.
 
 ---
@@ -136,7 +134,7 @@ For production deployment (e.g., on Vercel), ensure you configure environment va
 
 Explore and test the API interactively via Swagger at:
 
-- Local: `http://127.0.0.1:8000/swagger/`
+- Local: `[http://127.0.0.1:8000/swagger/](http://127.0.0.1:8000/swagger/)`
 - Production: `/swagger/` on your deployed URL.
 
 The docs include detailed endpoint descriptions, request/response schemas, and authentication instructions.
